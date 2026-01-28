@@ -220,14 +220,14 @@ The flasher handles all common failure modes:
 
 ```
 esp32-web-flasher/
-├── index.html           # UI (minimal, self-contained)
+├── index.html          
 ├── app.js              # Flashing logic (no dependencies)
 ├── firmware/           # Pre-compiled binaries (git-ignored)
 │   ├── bootloader.bin
 │   ├── partitions.bin
 │   └── firmware.bin
-├── README.md           # This file
-└── .gitignore          # Ignore binary files
+├── README.md           
+└── .gitignore          
 ```
 
 ### Why This Structure?
