@@ -1,5 +1,5 @@
 {
-  "name": "my-v0-project",
+  "name": "esp32-web-flasher",
   "version": "0.1.0",
   "private": true,
   "scripts": {
