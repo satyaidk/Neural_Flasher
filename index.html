@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Next-gen Browser-based ESP32-C3 Firmware Flasher with real-time monitoring">
+    <title>ESP32-C3 Neural Flasher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #06b6d4;
+            --secondary: #8b5cf6;
+            --accent: #ec4899;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a1f2e;
+            --bg-tertiary: #252d3d;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #334155;
+            --border-light: #475569;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(0deg, transparent 24%, rgba(14, 165, 233, 0.05) 25%, rgba(14, 165, 233, 0.05) 26%, transparent 27%, transparent 74%, rgba(14, 165, 233, 0.05) 75%, rgba(14, 165, 233, 0.05) 76%, transparent 77%, transparent),
+                linear-gradient(90deg, transparent 24%, rgba(14, 165, 233, 0.05) 25%, rgba(14, 165, 233, 0.05) 26%, transparent 27%, transparent 74%, rgba(14, 165, 233, 0.05) 75%, rgba(14, 165, 233, 0.05) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-top: 20px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 22px;
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
+        }
+
+        .logo-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 50%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(14, 165, 233, 0.1);
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid rgba(14, 165, 233, 0.2);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--primary);
+            margin-top: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Main content grid */
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        @media (min-width: 1024px) {
+            .main {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Card styling */
+        .card {
+            background: linear-gradient(135deg, rgba(26, 31, 46, 0.8) 0%, rgba(37, 45, 61, 0.6) 100%);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(14, 165, 233, 0.1) 50%, transparent 100%);
+            transition: left 0.5s ease;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(14, 165, 233, 0.1), inset 0 0 20px rgba(14, 165, 233, 0.05);
+        }
+
+        .card:hover::before {
+            left: 100%;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        /* Upload section */
+        .upload-area {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 2px dashed var(--border-light);
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Form controls */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(15, 20, 25, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 12px rgba(14, 165, 233, 0.2);
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(14, 165, 233, 0.4);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(14, 165, 233, 0.1);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 8px;
+        }
+
+        .status-badge.ready {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-badge.flashing {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            animation: pulse 1s infinite;
+        }
+
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .status-badge.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        /* Progress bar */
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+        }
+
+        /* Log viewer */
+        .log-viewer {
+            background: rgba(15, 20, 25, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .log-entry.success {
+            color: var(--success);
+        }
+
+        .log-entry.error {
+            color: var(--danger);
+        }
+
+        .log-entry.info {
+            color: var(--primary);
+        }
+
+        .log-entry.warning {
+            color: var(--warning);
+        }
+
+        /* Device info card */
+        .device-info {
+            background: rgba(14, 165, 233, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .device-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .device-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .device-info-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .device-info-value {
+            color: var(--primary);
+            font-weight: 600;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        /* Connection status */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .connection-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+
+        .connection-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .connection-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 32px;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo">⚡</div>
+                <div class="logo-text">ESP32-C3</div>
+            </div>
+            <h1>Neural Flasher</h1>
+            <p class="subtitle">Next-generation firmware deployment system</p>
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>System Ready</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <!-- Left Column: Upload & Configuration -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="card-icon">📦</div>
+                        Firmware Upload
+                    </div>
+                    
+                    <div class="upload-area" id="uploadArea">
+                        <span class="upload-icon">⬆️</span>
+                        <p class="upload-text">Drag your firmware file here</p>
+                        <p class="upload-hint">or click to browse • .bin files supported</p>
+                        <input type="file" id="fileInput" accept=".bin" />
+                    </div>
+
+                    <div id="fileInfo" style="display: none;">
+                        <div class="device-info">
+                            <div class="device-info-row">
+                                <span class="device-info-label">File:</span>
+                                <span class="device-info-value" id="fileName">-</span>
+                            </div>
+                            <div class="device-info-row">
+                                <span class="device-info-label">Size:</span>
+                                <span class="device-info-value" id="fileSize">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="baudRate">Baud Rate</label>
+                        <select id="baudRate">
+                            <option value="115200" selected>115200 (Recommended)</option>
+                            <option value="230400">230400</option>
+                            <option value="460800">460800</option>
+                            <option value="921600">921600</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="offset">Flash Offset (hex)</label>
+                        <input type="text" id="offset" value="0x10000" placeholder="0x10000" />
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-title">
+                        <div class="card-icon">🔌</div>
+                        Device Connection
+                    </div>
+
+                    <div class="connection-status">
+                        <div class="connection-dot" id="statusDot"></div>
+                        <span class="connection-text">
+                            <span id="connectionStatus">Disconnected</span>
+                            <span class="status-badge" id="connectionBadge">offline</span>
+                        </span>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-primary" id="connectBtn" onclick="connectDevice()">
+                            Connect Device
+                        </button>
+                        <button class="btn-secondary" id="disconnectBtn" onclick="disconnectDevice()" disabled>
+                            Disconnect
+                        </button>
+                    </div>
+
+                    <div id="deviceInfo" style="display: none;">
+                        <div class="device-info" style="margin-top: 20px;">
+                            <div class="device-info-row">
+                                <span class="device-info-label">Port:</span>
+                                <span class="device-info-value" id="portName">-</span>
+                            </div>
+                            <div class="device-info-row">
+                                <span class="device-info-label">Baud Rate:</span>
+                                <span class="device-info-value" id="currentBaud">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Flash & Status -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <div class="card-icon">⚙️</div>
+                        Flash Configuration
+                    </div>
+
+                    <div class="form-group">
+                        <label for="eraseAll">Flash Mode</label>
+                        <select id="eraseAll">
+                            <option value="false" selected>Preserve Existing Data</option>
+                            <option value="true">Erase Entire Flash</option>
+                        </select>
+                    </div>
+
+                    <div class="device-info">
+                        <div class="device-info-row">
+                            <span class="device-info-label">Chip:</span>
+                            <span class="device-info-value">ESP32-C3</span>
+                        </div>
+                        <div class="device-info-row">
+                            <span class="device-info-label">Flash Size:</span>
+                            <span class="device-info-value">4 MB</span>
+                        </div>
+                        <div class="device-info-row">
+                            <span class="device-info-label">Protocol:</span>
+                            <span class="device-info-value">Web Serial</span>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-primary" id="flashBtn" onclick="flashFirmware()" disabled>
+                            🚀 Flash Firmware
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-title">
+                        <div class="card-icon">📊</div>
+                        Progress <span class="status-badge" id="progressStatus">idle</span>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-label">
+                            <span>Overall Progress</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+
+                    <div class="log-viewer" id="logViewer">
+                        <div class="log-entry info">Ready to flash • Waiting for device connection</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; color: var(--text-secondary); font-size: 12px; padding-top: 20px; border-top: 1px solid var(--border); margin-top: auto;">
+            <p>ESP32-C3 Neural Flasher • Web Serial API • No installation required</p>
+            <p style="margin-top: 8px; font-size: 11px; color: #64748b;">Open-source firmware deployment • HTTPS required for Web Serial access</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
