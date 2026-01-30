@@ -43,3 +43,6 @@ All logic is integrated — frontend UI and backend flashing logic run together 
 **Architecture:** Frontend (components) + Backend Logic (hooks) = Single Next.js App
 
 See **REQUIREMENTS.txt** for the full structure and details.
+
+---
+Built with ❤️ for the ESP32 community
