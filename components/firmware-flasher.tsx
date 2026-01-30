@@ -21,12 +21,15 @@ import {
   AlertCircle,
   Info,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
+import { BOARD_CONFIGS, ESP32BoardType } from '@/hooks/use-flasher';
 
 export function FirmwareFlasher() {
-  const { state, connect, disconnect, flashFirmware, addLog, clearLogs } = useFlasher();
+  const { state, connect, disconnect, flashFirmware, addLog, clearLogs, setBoard, setSelectedPort, refreshPorts, requestPort } = useFlasher();
   const [baudRate, setBaudRate] = useState(115200);
   const [flashOffset, setFlashOffset] = useState('0x10000');
+  const [eraseAll, setEraseAll] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState(false);
@@ -61,11 +64,16 @@ export function FirmwareFlasher() {
     }
   };
 
-  const handleConnect = async () => {
+  const handleConnect = async (port?: SerialPort) => {
     try {
-      await connect(baudRate);
+      // Connect with the provided port (from dropdown or from requestPort)
+      await connect(baudRate, port);
     } catch (error) {
-      console.error('[v0] Connection error:', error);
+      // Only log actual errors, not user cancellations
+      if (error instanceof Error && error.name !== 'NotFoundError') {
+        console.error('[v0] Connection error:', error);
+        addLog(`Connection failed: ${error.message}`, 'error');
+      }
     }
   };
 
@@ -78,7 +86,8 @@ export function FirmwareFlasher() {
     try {
       const data = await selectedFile.arrayBuffer();
       const offset = parseInt(flashOffset, 16);
-      await flashFirmware(new Uint8Array(data), offset);
+      const boardType = state.selectedBoard as ESP32BoardType;
+      await flashFirmware(new Uint8Array(data), offset, eraseAll, boardType);
     } catch (error) {
       console.error('[v0] Flash error:', error);
     }
@@ -176,6 +185,36 @@ export function FirmwareFlasher() {
               </div>
             </Card>
 
+            {/* Board Selection Card */}
+            <Card className="glow-card">
+              <div className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Cpu className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-semibold">Board Selection</h2>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase">
+                      ESP32 Board Type
+                    </label>
+                    <select
+                      value={state.selectedBoard}
+                      onChange={(e) => setBoard(e.target.value as ESP32BoardType)}
+                      disabled={state.isConnected || state.isFlashing}
+                      className="w-full mt-2 px-3 py-2 rounded-lg bg-input border border-primary/20 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                    >
+                      {Object.keys(BOARD_CONFIGS).map((board) => (
+                        <option key={board} value={board}>
+                          {BOARD_CONFIGS[board as ESP32BoardType].name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
             {/* Connection Card */}
             <Card className="glow-card">
               <div className="p-6">
@@ -185,6 +224,61 @@ export function FirmwareFlasher() {
                 </div>
 
                 <div className="space-y-4">
+                  {/* COM Port Selection */}
+                  {state.availablePorts.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">
+                          Detected Ports
+                        </label>
+                        <button
+                          onClick={refreshPorts}
+                          className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                          title="Refresh ports"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Refresh
+                        </button>
+                      </div>
+                      <select
+                        value={state.selectedPort ? state.availablePorts.findIndex(p => p.port === state.selectedPort) : -1}
+                        onChange={(e) => {
+                          const index = parseInt(e.target.value);
+                          if (index >= 0 && index < state.availablePorts.length) {
+                            setSelectedPort(state.availablePorts[index].port);
+                          } else {
+                            setSelectedPort(null);
+                          }
+                        }}
+                        disabled={state.isConnected || state.isFlashing}
+                        className="w-full mt-2 px-3 py-2 rounded-lg bg-input border border-primary/20 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                      >
+                        <option value={-1}>Select port or choose manually...</option>
+                        {state.availablePorts.map((portInfo, index) => (
+                          <option key={index} value={index}>
+                            {portInfo.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {state.availablePorts.length} port(s) detected
+                      </p>
+                    </div>
+                  )}
+
+                  {state.availablePorts.length === 0 && !state.isConnected && (
+                    <div className="text-xs text-muted-foreground p-2 rounded bg-primary/5 border border-primary/10">
+                      <p className="font-semibold mb-1 text-primary">No previously authorized ports</p>
+                      <p className="mb-2">This is normal for first-time use. Click "Connect Device" to authorize your COM port.</p>
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2 mt-2">
+                        <p className="font-semibold text-yellow-400 mb-1">💡 Important:</p>
+                        <p className="text-xs">Your COM port (e.g., COM8) appears in Device Manager but needs browser authorization.</p>
+                        <p className="text-xs mt-1">The system dialog will show ALL available COM ports, including COM8.</p>
+                      </div>
+                      <p className="mt-2 text-xs opacity-80">After first connection, the port will be saved for future use.</p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground uppercase">
                       Baud Rate
@@ -204,22 +298,64 @@ export function FirmwareFlasher() {
                   </div>
 
                   <Button
-                    onClick={state.isConnected ? disconnect : handleConnect}
+                    onClick={async (e) => {
+                      if (state.isConnected) {
+                        disconnect();
+                        return;
+                      }
+
+                      // CRITICAL: requestPort() must be called directly from onClick
+                      // Don't wrap in preventDefault/stopPropagation or async delays
+                      try {
+                        let portToUse: SerialPort | null | undefined = state.selectedPort;
+                        
+                        // If no port selected from dropdown, request one NOW (synchronously from click)
+                        if (!portToUse || !state.availablePorts.some(p => p.port === portToUse)) {
+                          addLog('Opening port selection dialog...', 'info');
+                          addLog('Look for COM8 (Silicon Labs CP210x) in the list', 'info');
+                          portToUse = await requestPort();
+                          if (!portToUse) {
+                            // User cancelled - requestPort already logged
+                            return;
+                          }
+                        }
+                        
+                        // Connect with the port
+                        await handleConnect(portToUse);
+                      } catch (error) {
+                        if (error instanceof Error && error.name !== 'NotFoundError') {
+                          console.error('[v0] Connection error:', error);
+                          addLog(`Connection failed: ${error.message}`, 'error');
+                        }
+                      }
+                    }}
                     className="w-full glow-button"
                     disabled={state.isFlashing}
+                    title={state.selectedPort ? 'Connect to the selected port' : 'Click to open port selection dialog - COM8 should appear in the list'}
                   >
                     {state.isConnected ? (
                       <>
                         <X className="w-4 h-4 mr-2" />
                         Disconnect
                       </>
+                    ) : state.selectedPort ? (
+                      <>
+                        <Radio className="w-4 h-4 mr-2" />
+                        Connect to Selected Port
+                      </>
                     ) : (
                       <>
                         <Radio className="w-4 h-4 mr-2" />
-                        Connect Device
+                        Connect Device (Select COM8)
                       </>
                     )}
                   </Button>
+                  {!state.isConnected && !state.selectedPort && (
+                    <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
+                      <p className="font-semibold">Click button above to authorize COM8</p>
+                      <p className="text-xs opacity-80">The system dialog will show all COM ports including COM8</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
@@ -245,6 +381,21 @@ export function FirmwareFlasher() {
                       placeholder="0x10000"
                       className="w-full mt-2 px-3 py-2 rounded-lg bg-input border border-primary/20 text-foreground text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
                     />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase">
+                      Flash Mode
+                    </label>
+                    <select
+                      value={eraseAll ? 'true' : 'false'}
+                      onChange={(e) => setEraseAll(e.target.value === 'true')}
+                      disabled={state.isFlashing}
+                      className="w-full mt-2 px-3 py-2 rounded-lg bg-input border border-primary/20 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+                    >
+                      <option value="false">Preserve Existing Data</option>
+                      <option value="true">Erase Entire Flash</option>
+                    </select>
                   </div>
 
                   <Button
@@ -286,6 +437,7 @@ export function FirmwareFlasher() {
                         </span>
                       </div>
                       <Progress value={state.progress.percentage} className="h-2" />
+                      <p className="text-xs text-muted-foreground mt-2">{state.progress.status}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-primary/20">
@@ -320,7 +472,76 @@ export function FirmwareFlasher() {
               </Card>
             )}
 
-            {/* Logs Card */}
+            {/* Device Info Card - Moved to Top */}
+            <Card className="glow-card">
+              <div className="p-6">
+                <h2 className="text-lg font-semibold mb-4">Device Information</h2>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <span className="text-muted-foreground">Board Type</span>
+                    <Badge variant="secondary">{BOARD_CONFIGS[state.selectedBoard as ESP32BoardType].name}</Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <span className="text-muted-foreground">Connection Status</span>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          state.isConnected ? 'bg-green-400' : 'bg-red-400'
+                        }`}
+                      />
+                      <Badge variant={state.isConnected ? 'default' : 'secondary'}>
+                        {state.isConnected ? 'Connected' : 'Disconnected'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {state.isConnected && state.connectedPortInfo && (
+                    <>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                        <span className="text-muted-foreground">COM Port</span>
+                        <code className="text-primary font-semibold text-xs font-mono">
+                          {state.connectedPortInfo.name}
+                        </code>
+                      </div>
+
+                      {state.connectedPortInfo.info?.usbVendorId && (
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                          <span className="text-muted-foreground">USB VID</span>
+                          <code className="text-primary font-semibold font-mono">
+                            0x{state.connectedPortInfo.info.usbVendorId.toString(16).toUpperCase().padStart(4, '0')}
+                          </code>
+                        </div>
+                      )}
+
+                      {state.connectedPortInfo.info?.usbProductId && (
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                          <span className="text-muted-foreground">USB PID</span>
+                          <code className="text-primary font-semibold font-mono">
+                            0x{state.connectedPortInfo.info.usbProductId.toString(16).toUpperCase().padStart(4, '0')}
+                          </code>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <span className="text-muted-foreground">Baud Rate</span>
+                    <code className="text-primary font-semibold">{baudRate}</code>
+                  </div>
+
+                  {state.chipId && (
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <span className="text-muted-foreground">Chip ID</span>
+                      <Badge variant="secondary">{state.chipId}</Badge>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Logs Card - Moved to Bottom */}
             <Card className="glow-card flex flex-col">
               <div className="p-6 border-b border-primary/20 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">System Log</h2>
@@ -353,39 +574,6 @@ export function FirmwareFlasher() {
                     ))}
                   </div>
                 )}
-              </div>
-            </Card>
-
-            {/* Device Info Card */}
-            <Card className="glow-card">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Device Information</h2>
-
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
-                    <span className="text-muted-foreground">Device Type</span>
-                    <Badge variant="secondary">ESP32-C3</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
-                    <span className="text-muted-foreground">Connection Status</span>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          state.isConnected ? 'bg-green-400' : 'bg-red-400'
-                        }`}
-                      />
-                      <Badge variant={state.isConnected ? 'default' : 'secondary'}>
-                        {state.isConnected ? 'Connected' : 'Disconnected'}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
-                    <span className="text-muted-foreground">Baud Rate</span>
-                    <code className="text-primary font-semibold">{baudRate}</code>
-                  </div>
-                </div>
               </div>
             </Card>
           </div>

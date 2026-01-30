@@ -156,7 +156,7 @@ npx http-server
 
 #### Using VS Code Live Server
 1. Install "Live Server" extension
-2. Right-click `index.html`
+2. Right-click `standalone/index.html`
 3. Select "Open with Live Server"
 
 ### Step 4: Flash Via Browser
@@ -294,7 +294,7 @@ sudo nano /etc/nginx/sites-available/default
 
 ### Customize Branding
 
-Edit `index.html` to match your brand:
+Edit `standalone/index.html` to match your brand:
 
 ```html
 <!-- Change title -->
@@ -329,7 +329,7 @@ firmware/
     └── firmware.bin (symlink to v1.0.1)
 ```
 
-Update app.js to load from version folder:
+Update standalone/app.js to load from version folder:
 ```javascript
 const response = await fetch(`/firmware/${version}/firmware.bin`);
 ```
@@ -353,7 +353,7 @@ const response = await fetch(`/firmware/${version}/firmware.bin`);
 
 ### Flashing Fails Partway
 - [ ] Firmware file is valid binary (not 0 bytes)
-- [ ] Reduce baud rate in app.js from 115200 to 9600
+- [ ] Reduce baud rate in standalone/app.js from 115200 to 9600
 - [ ] Increase timeout: `TIMEOUT = 10000`
 - [ ] Try different USB port/cable
 - [ ] Firmware may be corrupted—regenerate from source

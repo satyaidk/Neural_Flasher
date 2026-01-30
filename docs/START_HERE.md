@@ -52,7 +52,7 @@ This document will get you flashing in **5 minutes**.
 
 ### Step 3: Flash! (2 min)
 
-1. Open `index.html` in **Chrome or Edge**
+1. Open `standalone/index.html` in **Chrome or Edge**
 2. Plug ESP32-C3 via USB
 3. Click **"Connect Device"**
 4. Select device from popup
@@ -92,8 +92,9 @@ This document will get you flashing in **5 minutes**.
 
 ```
 esp32-web-flasher/
-├── index.html              ← Open this in Chrome/Edge
-├── app.js                  ← Flashing logic (don't change)
+├── standalone/
+│   ├── index.html          ← Open this in Chrome/Edge
+│   └── app.js              ← Flashing logic (don't change)
 ├── firmware/               ← Put your .bin files here
 │   ├── firmware.bin        ← Required!
 │   ├── bootloader.bin      ← Optional
@@ -238,7 +239,7 @@ Yes! See [API_REFERENCE.md](API_REFERENCE.md) for full developer documentation.
 ### Flashing fails partway
 - Verify `firmware.bin` exists and isn't empty
 - Try different USB cable
-- Reduce baud rate in app.js
+- Reduce baud rate in standalone/app.js
 - Regenerate firmware from source
 
 ### Device won't run after flash
@@ -264,7 +265,7 @@ Following the 5-minute quick start above?
 
 - [ ] Step 1: Firmware prepared and copied to `firmware/`
 - [ ] Step 2: Device in bootloader mode
-- [ ] Step 3: `index.html` opened in Chrome
+- [ ] Step 3: `standalone/index.html` opened in Chrome
 - [ ] Step 3: Device connected
 - [ ] Step 3: Flashing in progress
 - [ ] Step 3: Success! Device running new firmware
@@ -288,7 +289,7 @@ All checked? **You're done!** 🎉
 
 ### If You Want to Customize
 1. Read [API_REFERENCE.md](API_REFERENCE.md)
-2. Study [app.js](app.js) code
+2. Study [app.js](../standalone/app.js) code
 3. Modify as needed
 4. Test locally before sharing
 
@@ -338,7 +339,7 @@ You have:
 ### Where to Find Help
 - Troubleshooting section in [README.md](README.md)
 - [CHECKLIST.md](CHECKLIST.md) for verification
-- Code comments in [app.js](app.js)
+- Code comments in [standalone/app.js](../standalone/app.js)
 - [API_REFERENCE.md](API_REFERENCE.md) for customization
 
 ---
@@ -353,7 +354,7 @@ Built for the embedded systems and IoT communities.
 
 ## Ready to Flash?
 
-👉 **[Open index.html in Chrome](file:///index.html)** and start flashing!
+👉 **Open `standalone/index.html` in Chrome and start flashing!**
 
 Not ready yet?
 - **Confused?** → Read [QUICK_START.md](QUICK_START.md)

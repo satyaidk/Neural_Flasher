@@ -54,7 +54,7 @@ esp32-web-flasher/
 ### Open This in Browser
 ```
 esp32-web-flasher/
-└── index.html              ← Open this!
+└── standalone/index.html   ← Open this!
 ```
 
 ---
@@ -216,8 +216,8 @@ app.clearLogBuffer()            // Clear logs
 If you want just ONE file instead of folder structure:
 
 ```html
-<!-- Copy everything from index.html into one file -->
-<!-- Import app.js code directly -->
+<!-- Copy everything from standalone/index.html into one file -->
+<!-- Import standalone/app.js code directly -->
 <!-- Works at any URL -->
 ```
 
@@ -262,7 +262,7 @@ API_REFERENCE.md       ← For customization
 ☐ Device in bootloader mode
 ☐ Browser: Chrome/Edge
 ☐ Local server running
-☐ index.html opens
+☐ standalone/index.html opens
 ☐ Device connects
 ☐ Flashing succeeds
 ☐ Firmware runs on device
@@ -273,20 +273,20 @@ API_REFERENCE.md       ← For customization
 ## ⚙️ Configuration Tweaks (Advanced)
 
 ### Increase Timeout
-Edit `app.js`, line ~60:
+Edit `standalone/app.js`, line ~60:
 ```javascript
 this.TIMEOUT = 10000;  // 10 seconds (default 5)
 ```
 
 ### Change Baud Rate
-Edit `app.js`, line ~52:
+Edit `standalone/app.js`, line ~52:
 ```javascript
 this.BAUD_RATE = 230400;  // Faster (default 115200)
 ```
 ⚠️ Risk: May cause timeouts. Use if reliable.
 
 ### Change Flash Offset
-Edit `app.js`, line ~66:
+Edit `standalone/app.js`, line ~66:
 ```javascript
 firmware: 0x20000,  // Non-standard offset
 ```
@@ -412,7 +412,7 @@ esptool.py -p /dev/ttyUSB0 write_flash 0x0000 firmware.bin
 → SETUP.md → README.md → Deploy
 
 **Want to Hack?**
-→ API_REFERENCE.md → Review app.js → Customize
+→ API_REFERENCE.md → Review standalone/app.js → Customize
 
 **Just Need Reference**
 → This page (CHEAT_SHEET.md)
@@ -440,7 +440,7 @@ Need to flash?
 
 **Your best move:** Test locally first, deploy confidently.
 
-**Your next step:** Open `index.html` and flash your device! 🚀
+**Your next step:** Open `standalone/index.html` and flash your device! 🚀
 
 ---
 

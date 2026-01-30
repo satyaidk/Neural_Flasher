@@ -36,7 +36,7 @@ npx http-server
    - Press `RST` button
    - Release `GPIO0` button
 
-2. Open `http://localhost:8000` in Chrome
+2. Open `http://localhost:8000/standalone/` in Chrome (or open standalone/index.html directly)
 
 3. Click **Connect Device** → Select port → **Start Flashing**
 
@@ -82,8 +82,9 @@ Drag folder into netlify.com
 ## File Structure
 ```
 esp32-web-flasher/
-├── index.html         ← Open this in browser
-├── app.js            ← Flashing logic (no changes needed)
+├── standalone/
+│   ├── index.html    ← Open this in browser
+│   └── app.js        ← Flashing logic (no changes needed)
 ├── firmware/
 │   ├── firmware.bin   ← Your compiled code here
 │   ├── bootloader.bin ← (optional)
@@ -130,7 +131,7 @@ No backend server needed. Everything in browser!
 
 - **More details**: Read [README.md](README.md)
 - **Full setup**: Read [SETUP.md](SETUP.md)
-- **Customize**: Edit `index.html` for branding
+- **Customize**: Edit `standalone/index.html` for branding
 - **Deploy**: Follow Phase 3 in SETUP.md
 
 ---
@@ -147,4 +148,4 @@ No backend server needed. Everything in browser!
 
 **Questions?** See full documentation in README.md and SETUP.md
 
-**Ready?** Open `index.html` and start flashing! 🚀
+**Ready?** Open `standalone/index.html` and start flashing! 🚀

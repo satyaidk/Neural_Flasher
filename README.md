@@ -1,401 +1,45 @@
-# ESP32-C3 Browser-Based Firmware Flasher
+# ESP32-C3 Web Firmware Flasher
 
+Browser-based firmware flasher for ESP32-C3 using the Web Serial API. No native tools required.
 
----
+## Quick understand & reference
 
-## Quick Start
+- **REQUIREMENTS.txt** — Project overview, folder structure, how to run, config, debugging. Start here for quick understanding and debugging.
 
-### Prerequisites
-- **Browser**: Chrome or Edge (version 89+)
-- **Device**: ESP32-C3 with USB connector
-- **Firmware**: Pre-compiled `.bin` files
+## Documentation
 
-### 1. Prepare Firmware
-Compile your ESP32-C3 firmware using Arduino IDE or ESP-IDF and export binaries:
+All guides live in **docs/**:
 
-```
-firmware/
-├── bootloader.bin      (optional, 8KB @ 0x0000)
-├── partitions.bin      (optional, 4KB @ 0x8000)
-└── firmware.bin        (required, main app @ 0x10000)
-```
+| Doc | Purpose |
+|-----|--------|
+| [docs/QUICK_START.md](docs/QUICK_START.md) | Get flashing in 5 minutes |
+| [docs/START_HERE.md](docs/START_HERE.md) | Onboarding |
+| [docs/README.md](docs/README.md) | Full reference |
+| [docs/SETUP.md](docs/SETUP.md) | Setup guide |
+| [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) | Architecture |
+| [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | Developer API |
+| [docs/FIRMWARE.md](docs/FIRMWARE.md) | How to generate .bin files |
 
-### 2. Connect Device
-1. Put ESP32-C3 in **bootloader mode**:
-   - Hold `GPIO0` to GND
-   - Click reset button (or power cycle)
-   - Release `GPIO0`
-2. Connect USB cable to computer
+## How to run
 
-### 3. Flash Firmware
-1. Open flashing UI in Chrome/Edge
-2. Click **Connect Device**
-3. Select device from browser dialog
-4. Click **Start Flashing**
-5. Wait for completion
-6. Device resets automatically
-
----
-
-## Architecture
-
-### System Flow
-
-```
-┌─────────────────┐
-│   Chrome/Edge   │  Web Serial API (requires HTTPS/localhost)
-│   Browser       │
-└────────┬────────┘
-         │
-         │ navigator.serial.requestPort()
-         │
-┌────────▼────────────────┐
-│  ESP32-C3 USB CDC       │
-│  Serial Interface       │
-└────────┬────────────────┘
-         │
-┌────────▼────────────────┐
-│  ROM Bootloader         │  Handles low-level flash commands
-│  (Always Available)     │
-└────────┬────────────────┘
-         │
-┌────────▼────────────────┐
-│  Flash Memory           │  1MB total, 3 regions
-│  (1MB SPI Flash)        │
-└─────────────────────────┘
-```
-
-### Flash Memory Layout
-
-| Offset  | Size  | File           | Purpose                      |
-|---------|-------|----------------|------------------------------|
-| 0x0000  | 8KB   | bootloader.bin | First-stage bootloader       |
-| 0x8000  | 4KB   | partitions.bin | Partition table (OTA, app)   |
-| 0x10000 | ~1MB  | firmware.bin   | Main application code        |
-
-### Communication Protocol
-
-The ESP32-C3 ROM bootloader is always accessible via serial (USB CDC) and understands the **Espressif bootloader protocol**:
-
-- **Baud Rate**: 115,200 bps
-- **Flow Control**: None (CTS/RTS signals used for mode switching)
-- **Data Format**: 8N1 (8 bits, no parity, 1 stop bit)
-
-Key signals:
-- **RTS = HIGH, DTR = LOW** → Normal operation (app runs)
-- **RTS = LOW, DTR = HIGH** → Bootloader mode (flashing)
-
----
-
-## Implementation Details
-
-### Step 1: Firmware Preparation (No Browser Compilation)
-
-Firmware **must be pre-compiled** using Arduino IDE or ESP-IDF:
-
-#### Using Arduino IDE
-```
-Sketch → Export compiled Binary
-```
-This generates `.bin` files in the sketch directory.
-
-#### Using ESP-IDF
+**Main Application (Next.js):**
 ```bash
-idf.py build
-# Outputs to build/ directory:
-# - bootloader.bin
-# - partitions.bin
-# - firmware.bin
+npm install
+npm run dev
 ```
+Then open **http://localhost:3000** in Chrome or Edge.
 
-**Why not compile in the browser?**
-- Embedded toolchains are huge (~500MB)
-- Would require Emscripten port (impractical)
-- Pre-compilation is standard industry practice
-- Flashing speed is what matters (browser can handle it)
+All logic is integrated — frontend UI and backend flashing logic run together in one app.
 
----
+## Folder structure (summary)
 
-### Step 2: Web Serial API Implementation
+- **app/** — Next.js pages and layout
+- **components/** — React UI components (firmware-flasher.tsx is the main UI)
+- **hooks/** — React hooks (use-flasher.ts contains all ESP32 protocol logic)
+- **firmware/** — Place your .bin files here
+- **docs/** — All documentation
+- **standalone/** — Legacy vanilla HTML/JS version (optional backup)
 
-The **Web Serial API** is the modern standard for browser-to-hardware communication:
+**Architecture:** Frontend (components) + Backend Logic (hooks) = Single Next.js App
 
-```javascript
-// Request serial port (user gesture required)
-const port = await navigator.serial.requestPort();
-
-// Open at standard ESP32 baud rate
-await port.open({ baudRate: 115200 });
-
-// Get reader/writer
-const reader = port.readable.getReader();
-const writer = port.writable.getWriter();
-```
-
-**Security Model**:
-- ✅ User-initiated only (click button required)
-- ✅ Permission prompt shown
-- ✅ HTTPS/localhost enforced
-- ✅ No background access
-- ✅ Browser sandbox isolation
-
-**Browser Support**:
-- ✅ Chrome 89+
-- ✅ Edge 89+
-- ❌ Firefox (not yet)
-- ❌ Safari (not yet)
-
----
-
-### Step 3: Flashing Pipeline
-
-The flasher executes these steps in sequence:
-
-#### 1. **Device Detection**
-```javascript
-// Send break signal to reset into bootloader
-await port.setSignals({ break: true });
-await sleep(100);
-await port.setSignals({ break: false });
-```
-
-#### 2. **Load Firmware**
-```javascript
-// Fetch .bin files from /firmware directory
-const firmware = await fetch('/firmware/firmware.bin').then(r => r.arrayBuffer());
-const data = new Uint8Array(firmware);
-```
-
-#### 3. **Erase Flash**
-```javascript
-// Clear all flash before writing
-const eraseCmd = new Uint8Array([0xC0, 0x30]);
-await sendCommand(eraseCmd);
-```
-
-#### 4. **Write Flash** (at correct offsets)
-```javascript
-// Write 256-byte blocks
-for (let i = 0; i < totalBlocks; i++) {
-    const packet = createWritePacket(offset, blockData);
-    await sendCommand(packet);
-}
-```
-
-#### 5. **Verify Flash**
-```javascript
-// Read back and compare (optional but recommended)
-const readData = await readFlash(offset, length);
-if (readData !== originalData) throw new Error("Verify failed");
-```
-
-#### 6. **Reset Device**
-```javascript
-// Exit bootloader, run application
-await port.setSignals({ requestToSend: false, dataTerminalReady: true });
-```
-
----
-
-### Step 4: Error Handling
-
-The flasher handles all common failure modes:
-
-| Error | Cause | Recovery |
-|-------|-------|----------|
-| No device selected | User canceled dialog | User clicks Connect again |
-| Device not in bootloader | GPIO0 not held | Instructions prompt user |
-| Timeout response | Serial communication lost | Auto-reconnect attempt |
-| Verify failure | Corrupted flash write | Erase and retry |
-| Browser incompatibility | Firefox/Safari | Clear message + docs link |
-
-**User-Readable Error Messages**:
-- ✓ All errors logged with timestamps
-- ✓ Suggestions for recovery
-- ✓ No technical jargon in UI
-
----
-
-## Project Structure
-
-```
-esp32-web-flasher/
-├── index.html          
-├── app.js              # Flashing logic (no dependencies)
-├── firmware/           # Pre-compiled binaries (git-ignored)
-│   ├── bootloader.bin
-│   ├── partitions.bin
-│   └── firmware.bin
-├── README.md           
-└── .gitignore          
-```
-
-### Why This Structure?
-
-- **Single HTML file** - No build step, works immediately
-- **Single JS file** - No dependencies, no npm required
-- **Firmware folder** - Binaries served statically
-- **Self-contained** - Deploy as-is to any static host
-
----
-
-## Firmware Preparation Guide
-
-### Arduino IDE (Easiest)
-
-```cpp
-// Create simple sketch
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println("ESP32-C3 Ready!");
-}
-
-void loop() {
-  delay(1000);
-}
-```
-
-**Export binary**:
-1. Sketch → Export compiled Binary
-2. Files appear in sketch directory:
-   - `YourSketch.ino.bootloader.bin`
-   - `YourSketch.ino.partitions.bin`
-   - `YourSketch.ino.firmware.bin`
-
-### ESP-IDF (Advanced)
-
-```bash
-# Clone example
-git clone https://github.com/espressif/esp-idf
-cd esp-idf/examples/get-started/hello_world
-
-# Configure
-idf.py set-target esp32c3
-idf.py menuconfig
-
-# Build
-idf.py build
-
-# Binaries in:
-# build/bootloader/bootloader.bin
-# build/partition_table/partition-table.bin
-# build/hello_world.bin
-```
-
----
-
-## Security Considerations
-
-### Browser Sandbox
-- Serial communication runs **inside browser process**
-- No elevated privileges needed
-- Can't access filesystem (except /firmware served files)
-- User fully controls what firmware is flashed
-
-### Best Practices
-1. **Verify firmware integrity** before flashing
-2. **Use HTTPS only** in production
-3. **Monitor serial logs** for errors
-4. **Keep backups** of original firmware
-5. **Test on safe hardware** before production
-
----
-
-## Troubleshooting
-
-### "No device connected"
-- Ensure ESP32-C3 is plugged in
-- Check USB cable (must support data transfer)
-- Verify device appears in system's device manager
-
-### "Device not in bootloader mode"
-- Hold GPIO0 to GND
-- Press reset button
-- Release GPIO0
-- Try reconnecting
-
-### "Port already in use"
-- Close Arduino IDE or other serial monitors
-- Unplug and replug device
-
-### "HTTPS required" error
-- Use https:// URL (not http://)
-- Or use localhost for development
-
-### Flashing fails mid-way
-- Increase timeout in `app.js` (line ~60): `TIMEOUT = 10000`
-- Reduce baud rate: change `BAUD_RATE = 9600`
-- Try different USB port
-
----
-
-## Performance
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Connect | <1s | User gesture + permission |
-| Detect device | 1-2s | Serial sync |
-| Erase flash | 2-5s | Depends on flash size |
-| Write 1MB firmware | 30-45s | 256-byte blocks @ 115.2kbps |
-| Verify | 10-15s | Read + compare |
-| **Total** | **~50-60s** | For full 1MB firmware |
-
----
-
-## Browser Compatibility Matrix
-
-| Browser | Version | Supported | Notes |
-|---------|---------|-----------|-------|
-| Chrome  | 89+     | ✅ Yes    | Recommended |
-| Edge    | 89+     | ✅ Yes    | Chromium-based |
-| Firefox | All     | ❌ No     | Not implemented yet |
-| Safari  | All     | ❌ No     | Not implemented |
-| Opera   | 75+     | ✅ Yes    | Chromium-based |
-
----
-
-## Future Enhancements
-
-### Potential Features
-- [ ] Firmware file upload (user-selected .bin files)
-- [ ] Batch flashing (multiple devices)
-- [ ] OTA (Over-The-Air) update support
-- [ ] Firmware signature verification
-- [ ] Device info display (chip ID, MAC, etc.)
-- [ ] Advanced bootloader commands
-- [ ] Mobile web support (when available)
-- [ ] Firmware rollback capability
-
-### Known Limitations
-- Single device at a time (browser sandbox)
-- No direct filesystem access (security)
-- Mobile not supported (no Web Serial on phones yet)
-
----
-
-## Development Notes
-
-### Code Quality
-- ✅ Extensive inline comments explaining ESP32 protocol
-- ✅ Clear separation of concerns (UI, Serial, Flashing)
-- ✅ Comprehensive error handling
-- ✅ User-friendly status reporting
-
-### No Dependencies
-- Pure JavaScript (no frameworks)
-- No npm packages
-- Works offline after initial load
-- ~700 lines of code total
-
-## Support
-
-For issues or questions:
-1. Check **Troubleshooting** section above
-2. Review browser console for errors
-3. Verify device is in bootloader mode
-4. Check firmware file integrity
-
----
-
-**Built with ❤️ for the ESP32 community**
+See **REQUIREMENTS.txt** for the full structure and details.

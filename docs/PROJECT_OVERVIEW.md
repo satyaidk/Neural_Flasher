@@ -34,8 +34,8 @@ Browser (Chrome/Edge) --USB--> ESP32-C3 --Flash--> Application Runs
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `index.html` | Beautiful, responsive UI | 362 |
-| `app.js` | Flashing logic + Web Serial | 588 |
+| `standalone/index.html` | Beautiful, responsive UI | 362 |
+| `standalone/app.js` | Flashing logic + Web Serial | 588 |
 | **Total** | **Everything needed** | **950** |
 
 **No dependencies.** No npm. No build step.
@@ -335,13 +335,13 @@ vercel
 ### Common Customizations
 
 **Change Colors**
-Edit `<style>` in `index.html`
+Edit `<style>` in `standalone/index.html`
 
 **Add Logo**
 Add `<img>` to HTML header
 
 **Support Different Device**
-- Modify `BAUD_RATE` in `app.js`
+- Modify `BAUD_RATE` in `standalone/app.js`
 - Adjust `FLASH_OFFSETS`
 - Update bootloader protocol commands
 

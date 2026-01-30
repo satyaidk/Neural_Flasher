@@ -1,0 +1,196 @@
+================================================================================
+  ESP32-C3 WEB FIRMWARE FLASHER — REQUIREMENTS & QUICK REFERENCE
+================================================================================
+
+PROJECT PURPOSE
+--------------
+Browser-based firmware flasher for ESP32-C3. Flash .bin files from Chrome/Edge
+via Web Serial API — no native tools or drivers required. Works over HTTPS or
+localhost.
+
+TARGET HARDWARE
+--------------
+- ESP32 DevKit (ESP32, ESP32-C3, ESP32-S2, ESP32-S3, ESP32-C6, ESP32-H2)
+- USB connection (CDC)
+- Pre-compiled .bin firmware (Arduino IDE or ESP-IDF)
+- Board selection available in UI
+
+BROWSER REQUIREMENTS
+-------------------
+- Chrome 89+, Edge 89+, or Opera 75+ (Web Serial API)
+- HTTPS or localhost (Web Serial not allowed on plain HTTP)
+- User gesture required to connect (button click)
+
+
+================================================================================
+  FOLDER STRUCTURE (RESTRUCTURED FOR CLARITY)
+================================================================================
+
+web_firmware_esp32_c3/
+|
+|-- REQUIREMENTS.txt          <- YOU ARE HERE (quick understand + reference)
+|-- README.md                 <- Short entry; points to docs/ and this file
+|
+|-- app/                      <- NEXT.JS APP (MAIN APPLICATION)
+|   |-- globals.css           <- Global styles
+|   |-- layout.tsx            <- Root layout
+|   |-- page.tsx              <- Main page (renders FirmwareFlasher)
+|
+|-- components/               <- React UI Components
+|   |-- firmware-flasher.tsx  <- MAIN UI COMPONENT (frontend)
+|   |-- theme-provider.tsx
+|   |-- ui/                   <- shadcn-style components (many files)
+|
+|-- hooks/                    <- React Hooks (BACKEND LOGIC)
+|   |-- use-flasher.ts        <- COMPLETE ESP32 PROTOCOL LOGIC (all flashing logic)
+|   |-- use-mobile.ts
+|   |-- use-toast.ts
+|
+|-- standalone/               <- LEGACY (optional backup)
+|   |-- index.html            <- Old vanilla HTML version
+|   |-- app.js                <- Old vanilla JS version
+|   |-- flasher.html          <- Legacy inline script version
+|
+|-- lib/
+|   |-- utils.ts
+|
+|-- firmware/                 <- Put your .bin files here
+|   |-- README.md             <- Points to docs/FIRMWARE.md
+|
+|-- docs/                     <- ALL DOCUMENTATION
+|   |-- README.md             <- Full project reference (from original root)
+|   |-- QUICK_START.md        <- 5-min get started
+|   |-- SETUP.md              <- Step-by-step setup
+|   |-- START_HERE.md         <- Onboarding
+|   |-- PROJECT_OVERVIEW.md   <- Architecture and structure
+|   |-- API_REFERENCE.md      <- Developer API
+|   |-- CHEAT_SHEET.md        <- Commands and shortcuts
+|   |-- CHECKLIST.md          <- Pre-flight checklist
+|   |-- INDEX.md              <- Doc index
+|   |-- FIRMWARE.md           <- How to generate binaries, flash layout
+|
+|-- styles/                   <- Legacy; Next app uses app/globals.css
+|
+|-- package.json, next.config.mjs, tsconfig.json, etc.  <- Next.js config
+
+
+================================================================================
+  HOW TO RUN (SINGLE APPLICATION)
+================================================================================
+
+NEXT.JS APPLICATION (Main App - Everything Integrated)
+  1. npm install
+  2. npm run dev
+  3. Open http://localhost:3000 in Chrome or Edge
+  4. Select your ESP32 board type (ESP32, ESP32-C3, ESP32-S2, ESP32-S3, etc.)
+  5. Website auto-detects available COM ports (or select manually)
+  6. Put ESP32 in bootloader mode (hold GPIO0/BOOT, reset, release GPIO0)
+  7. Connect device, select .bin file, flash
+
+Features:
+  - Board Selection: Choose from ESP32, ESP32-C3, ESP32-S2, ESP32-S3, ESP32-C6, ESP32-H2
+  - Auto Port Detection: Website automatically detects previously authorized COM ports
+  - Manual Port Selection: Can still manually select port if needed
+  - Single Application: All logic integrated in Next.js app
+
+All logic is integrated in the Next.js app:
+  - Frontend: components/firmware-flasher.tsx (React UI)
+  - Backend Logic: hooks/use-flasher.ts (Complete ESP32 protocol for all boards)
+  - Single entry point: npm run dev → http://localhost:3000
+
+NOTE: standalone/ folder contains legacy vanilla HTML/JS version (optional backup)
+
+
+================================================================================
+  FLASH MEMORY LAYOUT (ESP32-C3)
+================================================================================
+
+  Offset    Size    File              Purpose
+  ------    ----    ----              ------
+  0x0000    8 KB    bootloader.bin    First-stage bootloader
+  0x8000    4 KB    partitions.bin    Partition table
+  0x10000   ~1 MB   firmware.bin      Main application (default flash target)
+
+
+================================================================================
+  ARCHITECTURE (DATA FLOW)
+================================================================================
+
+  Browser (Chrome/Edge)
+       |
+       | Web Serial API (navigator.serial)
+       v
+  ESP32-C3 USB CDC
+       |
+       v
+  ROM Bootloader (serial protocol)
+       |
+       v
+  Flash memory
+
+
+================================================================================
+  KEY CONFIG (NEXT.JS APP — hooks/use-flasher.ts)
+================================================================================
+
+  BOARD TYPES    ESP32, ESP32-C3, ESP32-S2, ESP32-S3, ESP32-C6, ESP32-H2
+  BAUD_RATE      115200   (configurable in UI dropdown)
+  TIMEOUT        5000     (ms; increase if flashing times out)
+  FLASH_OFFSETS  bootloader 0x0000, partitions 0x8000, firmware 0x10000
+  Chunk size     4096     (bytes per write block)
+  PORT DETECTION Auto-detects previously authorized COM ports
+  
+  All config is in hooks/use-flasher.ts. UI allows:
+  - Selecting board type (dropdown)
+  - Auto-detecting COM ports (navigator.serial.getPorts())
+  - Changing baud rate and flash offset without code changes
+
+
+================================================================================
+  DEBUGGING TIPS
+================================================================================
+
+  1. Open browser DevTools (F12) → Console: all log() output and errors appear.
+  2. "Web Serial not supported" → Use Chrome/Edge; ensure HTTPS or localhost.
+  3. "No device" / "NotFoundError" → Put device in bootloader (GPIO0/BOOT + reset).
+  4. Port not detected → Click "Refresh" button or manually select port.
+  5. Port in use → Close Arduino IDE or other serial monitors; replug device.
+  6. Wrong board selected → Change board type in dropdown before connecting.
+  7. Flashing timeout → Increase TIMEOUT in hooks/use-flasher.ts; try lower baud rate.
+  8. Next.js: run "npm run dev" from project root; check console for build errors.
+  9. All logic runs in browser (client-side) — no backend server needed.
+
+
+================================================================================
+  DOCUMENTATION INDEX (docs/)
+================================================================================
+
+  First time?        docs/QUICK_START.md  or  docs/START_HERE.md
+  Full reference:   docs/README.md
+  Setup guide:      docs/SETUP.md
+  Architecture:     docs/PROJECT_OVERVIEW.md
+  Developer API:    docs/API_REFERENCE.md
+  Binaries guide:   docs/FIRMWARE.md
+  Checklist:        docs/CHECKLIST.md
+  Cheat sheet:      docs/CHEAT_SHEET.md
+  Doc index:        docs/INDEX.md
+
+
+================================================================================
+  SECURITY & CONSTRAINTS
+================================================================================
+
+  - Web Serial requires user gesture (no silent connection).
+  - HTTPS or localhost only in production.
+  - Single device at a time (browser limitation).
+  - No Web Serial on Firefox/Safari or mobile (as of this writing).
+
+
+================================================================================
+  VERSION / UPDATED
+================================================================================
+
+  Restructured: Jan 2026. Use REQUIREMENTS.txt for quick understanding and
+  debugging. Use docs/ for detailed guides.
+
+================================================================================

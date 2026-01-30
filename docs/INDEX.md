@@ -10,7 +10,7 @@ Welcome! This guide helps you navigate all documentation.
 1. Read: [QUICK_START.md](QUICK_START.md)
 2. Prepare firmware via Arduino IDE
 3. Copy `.bin` files to `firmware/` folder
-4. Open `index.html` in Chrome
+4. Open `standalone/index.html` in Chrome
 5. Click Connect → Flash
 
 ### Path 2: I'm Setting Up the Project (30 minutes)
@@ -29,7 +29,7 @@ Welcome! This guide helps you navigate all documentation.
 1. Study: [API_REFERENCE.md](API_REFERENCE.md) - Full API documentation
 2. Check: [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - Architecture details
 3. Reference: [README.md](README.md) - Implementation details
-4. Review: [app.js](app.js) - Inline code comments
+4. Review: [app.js](../standalone/app.js) - Inline code comments
 
 ---
 
@@ -59,8 +59,9 @@ Welcome! This guide helps you navigate all documentation.
 ```
 esp32-web-flasher/
 │
-├── 📄 index.html               ← Open in Chrome/Edge to flash
-├── 📄 app.js                   ← Flashing logic (no changes needed)
+├── standalone/
+│   ├── index.html              ← Open in Chrome/Edge to flash
+│   └── app.js                  ← Flashing logic (no changes needed)
 │
 ├── 📂 firmware/                ← Your compiled binaries go here
 │   ├── firmware.bin            ← Application code (REQUIRED)
@@ -155,8 +156,8 @@ esp32-web-flasher/
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| index.html | 362 | User interface |
-| app.js | 588 | Flashing logic |
+| standalone/index.html | 362 | User interface |
+| standalone/app.js | 588 | Flashing logic |
 | README.md | 495 | Full reference |
 | SETUP.md | 442 | Setup guide |
 | API_REFERENCE.md | 685 | Developer API |
@@ -213,7 +214,7 @@ http://localhost:8000
 - [ ] Generate firmware using Arduino IDE or ESP-IDF
 - [ ] Copy `.bin` files to `firmware/` folder
 - [ ] Put device in bootloader mode
-- [ ] Open `index.html` in Chrome/Edge
+- [ ] Open `standalone/index.html` in Chrome/Edge
 - [ ] Click "Connect Device"
 - [ ] Click "Start Flashing"
 - [ ] Watch for success message
@@ -275,7 +276,7 @@ http://localhost:8000
 ### For Developers
 1. [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)
 2. [API_REFERENCE.md](API_REFERENCE.md)
-3. Study [app.js](app.js) code
+3. Study [app.js](../standalone/app.js) code
 4. Check browser console for debugging
 
 ---
@@ -298,7 +299,7 @@ INDEX.md (you are here)
     │   └─→ API_REFERENCE.md (customization)
     │
     └─→ API_REFERENCE.md (developer API)
-        └─→ app.js (source code)
+        └─→ standalone/app.js (source code)
 ```
 
 ---
